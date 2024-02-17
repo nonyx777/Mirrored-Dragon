@@ -63,7 +63,7 @@ vec3 lightModelCalc()
 
     ambient = light.ambient * vec3(sampled_diffuse);
 
-    float diffuse_value = max(dot(fragNormal, light_dir), 0.f);
+    float diffuse_value = max(dot(fragNormal, light_dir), 0.f) * 4.f;
     diffuse = diffuse_value * light.diffuse * vec3(sampled_diffuse);
 
     vec3 view_dir = normalize(view_pos - fragPos);
