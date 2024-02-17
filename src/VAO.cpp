@@ -30,9 +30,19 @@ void VAO::linkVBO(VBO vbo, GLuint posLayout, GLuint colorLayout)
     glVertexAttribPointer(posLayout, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GL_FLOAT), (void *)0);
     glEnableVertexAttribArray(posLayout);
     // color
-    glVertexAttribPointer(colorLayout, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GL_FLOAT), (void*)(3 * sizeof(GL_FLOAT)));
+    glVertexAttribPointer(colorLayout, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GL_FLOAT), (void *)(3 * sizeof(GL_FLOAT)));
     glEnableVertexAttribArray(colorLayout);
 
+    vbo.unbind();
+}
+
+void VAO::linkVBO(VBO vbo, GLuint posLayout, GLuint texLayout, bool texture)
+{
+    vbo.bind();
+    glEnableVertexAttribArray(posLayout);
+    glVertexAttribPointer(posLayout, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GL_FLOAT), (void *)0);
+    glEnableVertexAttribArray(texLayout);
+    glVertexAttribPointer(texLayout, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GL_FLOAT), (void *)(2 * sizeof(float)));
     vbo.unbind();
 }
 

@@ -7,6 +7,19 @@
 #include <glm/gtc/type_ptr.hpp>
 #include "include/stb_image.h"
 #include "include/Model.hpp"
+#include "include/VAO.hpp"
+#include "include/VBO.hpp"
+
+// pp_quad vertices (post-processing quad)
+float pp_quad_vertices[] = {
+	// position //texcoords
+	-1.f, 1.f, 0.f, 1.f,
+	-1.f, -1.f, 0.f, 0.f,
+	1.f, -1.f, 1.f, 0.f,
+
+	-1.f, 1.f, 0.f, 1.f,
+	1.f, -1.f, 1.f, 0.f,
+	1.f, 1.f, 1.f, 1.f};
 
 void framebuffer_size_callback(GLFWwindow *window, int width, int height);
 void processInput(GLFWwindow *window);
@@ -84,21 +97,59 @@ int main()
 	glEnable(GL_DEPTH_TEST);
 
 	//...
-	Shader shader = Shader("./resource/object.vert", "./resource/object.frag");
+	Shader modelShader = Shader("./resource/object.vert", "./resource/object.frag");
+	Shader ppquadShader = Shader("./resource/pp_quad.vert", "./resource/pp_quad.frag");
 
 	// load model
 	Model ourModel("./resource/objects/backpack/backpack.obj");
 
+	ppquadShader.use();
+	glUniform1i(glGetUniformLocation(ppquadShader.id, "screenTexture"), 0);
+
+	// vertex buffers and attributes
+	VAO ppquadVAO = VAO();
+	VBO ppquadVBO = VBO(pp_quad_vertices, sizeof(pp_quad_vertices));
+	ppquadVAO.bind();
+	ppquadVAO.linkVBO(ppquadVBO, 0, 1, true);
+	ppquadVAO.unbind();
+
+	// framebuffer for post processing
+	unsigned int framebuffer;
+	glGenFramebuffers(1, &framebuffer);
+	glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+	// generate and attach a color texture buffer to framebuffer
+	unsigned int textureColorbuffer;
+	glGenTextures(1, &textureColorbuffer);
+	glBindTexture(GL_TEXTURE_2D, textureColorbuffer);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureColorbuffer, 0);
+	// generate and attach a renderbuffer fo the framebuffer
+	unsigned int rbo;
+	glGenRenderbuffers(1, &rbo);
+	glBindRenderbuffer(GL_RENDERBUFFER, rbo);
+	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, SCR_WIDTH, SCR_HEIGHT);
+	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo);
+
+	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+	{
+		std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete" << std::endl;
+	}
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
 	while (!glfwWindowShouldClose(window))
 	{
 		processInput(window);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		shader.use();
 
-		// rotate light
-		//  float cosx = glm::cos(glfwGetTime()) * radius;
-		//  float sinz = glm::sin(glfwGetTime()) * radius;
-		//  float siny = glm::sin(glfwGetTime()) * radius;
+		//activate quad framebuffer
+		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+		glEnable(GL_DEPTH_TEST);
+
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+		//draw scene
+		modelShader.use();
 		forShader.light_position = glm::vec3(-1.f, 1.f, 5.f);
 
 		glm::mat4 model = glm::mat4(1.f);
@@ -115,32 +166,47 @@ int main()
 
 		// Passing uniforms
 		// view position(camera position)
-		glUniform3fv(glGetUniformLocation(shader.id, "view_pos"), 1, glm::value_ptr(forShader.light_position));
+		glUniform3fv(glGetUniformLocation(modelShader.id, "view_pos"), 1, glm::value_ptr(forShader.light_position));
 		// point light parameters
-		glUniform3fv(glGetUniformLocation(shader.id, "light.direction"), 1, glm::value_ptr(forShader.light_direction));
-		glUniform3fv(glGetUniformLocation(shader.id, "light.position"), 1, glm::value_ptr(forShader.light_position));
-		glUniform3fv(glGetUniformLocation(shader.id, "light.ambient"), 1, glm::value_ptr(glm::vec3(0.2f, 0.2f, 0.2f)));
-		glUniform3fv(glGetUniformLocation(shader.id, "light.diffuse"), 1, glm::value_ptr(glm::vec3(0.8f, 0.8f, 0.8f)));
-		glUniform3fv(glGetUniformLocation(shader.id, "light.specular"), 1, glm::value_ptr(glm::vec3(1.f, 1.f, 1.f)));
-		glUniform1f(glGetUniformLocation(shader.id, "material.shininess"), 6.f);
+		glUniform3fv(glGetUniformLocation(modelShader.id, "light.direction"), 1, glm::value_ptr(forShader.light_direction));
+		glUniform3fv(glGetUniformLocation(modelShader.id, "light.position"), 1, glm::value_ptr(forShader.light_position));
+		glUniform3fv(glGetUniformLocation(modelShader.id, "light.ambient"), 1, glm::value_ptr(glm::vec3(0.2f, 0.2f, 0.2f)));
+		glUniform3fv(glGetUniformLocation(modelShader.id, "light.diffuse"), 1, glm::value_ptr(glm::vec3(0.8f, 0.8f, 0.8f)));
+		glUniform3fv(glGetUniformLocation(modelShader.id, "light.specular"), 1, glm::value_ptr(glm::vec3(1.f, 1.f, 1.f)));
+		glUniform1f(glGetUniformLocation(modelShader.id, "material.shininess"), 6.f);
 
-		glUniform1f(glGetUniformLocation(shader.id, "light.kc"), 1.f);
-		glUniform1f(glGetUniformLocation(shader.id, "light.kl"), 0.09f);
-		glUniform1f(glGetUniformLocation(shader.id, "light.kq"), 0.032f);
+		glUniform1f(glGetUniformLocation(modelShader.id, "light.kc"), 1.f);
+		glUniform1f(glGetUniformLocation(modelShader.id, "light.kl"), 0.09f);
+		glUniform1f(glGetUniformLocation(modelShader.id, "light.kq"), 0.032f);
 		// view matrix
-		glUniformMatrix4fv(glGetUniformLocation(shader.id, "view"), 1, GL_FALSE, glm::value_ptr(view));
+		glUniformMatrix4fv(glGetUniformLocation(modelShader.id, "view"), 1, GL_FALSE, glm::value_ptr(view));
 		// model matrix
-		glUniformMatrix4fv(glGetUniformLocation(shader.id, "model"), 1, GL_FALSE, glm::value_ptr(model));
+		glUniformMatrix4fv(glGetUniformLocation(modelShader.id, "model"), 1, GL_FALSE, glm::value_ptr(model));
 		// projection matrix
-		glUniformMatrix4fv(glGetUniformLocation(shader.id, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+		glUniformMatrix4fv(glGetUniformLocation(modelShader.id, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
 		// projection * view * model
-		glUniformMatrix4fv(glGetUniformLocation(shader.id, "transform"), 1, GL_FALSE, glm::value_ptr(transform));
+		glUniformMatrix4fv(glGetUniformLocation(modelShader.id, "transform"), 1, GL_FALSE, glm::value_ptr(transform));
 
-		ourModel.draw(shader);
+		ourModel.draw(modelShader);
+
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		glDisable(GL_DEPTH_TEST);
+
+		glClear(GL_COLOR_BUFFER_BIT);
+
+		ppquadShader.use();
+		ppquadVAO.bind();
+		glBindTexture(GL_TEXTURE_2D, textureColorbuffer);
+		glDrawArrays(GL_TRIANGLES, 0, 6);
 
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 	}
+
+	modelShader.Delete();
+	ppquadShader.Delete();
+	ppquadVAO.Delete();
+	ppquadVBO.Delete();
 
 	return 0;
 }
@@ -163,7 +229,7 @@ void mouse_cursor_callback(GLFWwindow *window, double xpos, double ypos)
 	lastY = SCR_HEIGHT / 2.0;
 	lastX = SCR_WIDTH / 2.0;
 
-	if(!can_rotate)
+	if (!can_rotate)
 		return;
 
 	if (firstMouse)
@@ -178,7 +244,7 @@ void mouse_cursor_callback(GLFWwindow *window, double xpos, double ypos)
 
 void mouse_button_callback(GLFWwindow *window, int button, int action, int mods)
 {
-	if(button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS)
+	if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS)
 		can_rotate = true;
 	else
 		can_rotate = false;
