@@ -11,15 +11,25 @@
 #include "include/VBO.hpp"
 
 // pp_quad vertices (post-processing quad)
-float pp_quad_vertices[] = {
+float quad_vertices[] = {
 	// position //texcoords
-	-1.f, 1.f, 0.f, 1.f,
-	-1.f, -1.f, 0.f, 0.f,
-	1.f, -1.f, 1.f, 0.f,
+	-1.f, 1.f, 0.f, 0.f, 1.f,
+	-1.f, -1.f, 0.f, 0.f, 0.f,
+	1.f, -1.f, 0.f, 1.f, 0.f,
 
-	-1.f, 1.f, 0.f, 1.f,
-	1.f, -1.f, 1.f, 0.f,
-	1.f, 1.f, 1.f, 1.f};
+	-1.f, 1.f, 0.f, 0.f, 1.f,
+	1.f, -1.f, 0.f, 1.f, 0.f,
+	1.f, 1.f, 0.f, 1.f, 1.f};
+
+float mirror_quad_vertices[] = {
+	// position //texcoords
+	-0.5f, 0.5f, 0.f, 0.f, 1.f,
+	-0.5f, -0.5f, 0.f, 0.f, 0.f,
+	0.5f, -0.5f, 0.f, 1.f, 0.f,
+
+	-0.5f, 0.5f, 0.f, 0.f, 1.f,
+	0.5f, -0.5f, 0.f, 1.f, 0.f,
+	0.5f, 0.5f, 0.f, 1.f, 1.f};
 
 void framebuffer_size_callback(GLFWwindow *window, int width, int height);
 void processInput(GLFWwindow *window);
@@ -99,19 +109,28 @@ int main()
 	//...
 	Shader modelShader = Shader("./resource/object.vert", "./resource/object.frag");
 	Shader ppquadShader = Shader("./resource/pp_quad.vert", "./resource/pp_quad.frag");
+	Shader mirrorShader = Shader("./resource/mirror_quad.vert", "./resource/mirror_quad.frag");
 
 	// load model
 	Model ourModel("./resource/objects/backpack/backpack.obj");
 
 	ppquadShader.use();
 	glUniform1i(glGetUniformLocation(ppquadShader.id, "screenTexture"), 0);
+	mirrorShader.use();
+	glUniform1i(glGetUniformLocation(mirrorShader.id, "mirrorTexture"), 0);
 
 	// vertex buffers and attributes
 	VAO ppquadVAO = VAO();
-	VBO ppquadVBO = VBO(pp_quad_vertices, sizeof(pp_quad_vertices));
+	VBO quadVBO = VBO(quad_vertices, sizeof(quad_vertices));
 	ppquadVAO.bind();
-	ppquadVAO.linkVBO(ppquadVBO, 0, 1, true);
+	ppquadVAO.linkVBO(quadVBO, 0, 1, true);
 	ppquadVAO.unbind();
+
+	VAO mquadVAO = VAO();
+	VBO mquadVBO = VBO(mirror_quad_vertices, sizeof(mirror_quad_vertices));
+	mquadVAO.bind();
+	mquadVAO.linkVBO(mquadVBO, 0, 1, true);
+	mquadVAO.unbind();
 
 	// framebuffer for post processing
 	unsigned int framebuffer;
@@ -131,10 +150,27 @@ int main()
 	glBindRenderbuffer(GL_RENDERBUFFER, rbo);
 	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, SCR_WIDTH, SCR_HEIGHT);
 	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo);
-
 	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
 	{
 		std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete" << std::endl;
+	}
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	// framebuffer for mirror
+	unsigned int mirrorframebuffer;
+	glGenFramebuffers(1, &mirrorframebuffer);
+	glBindFramebuffer(GL_FRAMEBUFFER, mirrorframebuffer);
+	// generate and attach a color texture buffer to framebuffer
+	unsigned int mirrorTextureColorBuffer;
+	glGenTextures(1, &mirrorTextureColorBuffer);
+	glBindTexture(GL_TEXTURE_2D, mirrorTextureColorBuffer);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, mirrorTextureColorBuffer, 0);
+	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+	{
+		std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not coplete" << std::endl;
 	}
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
@@ -142,13 +178,14 @@ int main()
 	{
 		processInput(window);
 
-		//activate quad framebuffer
-		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+		// activate quad framebuffer
+		glBindFramebuffer(GL_FRAMEBUFFER, mirrorframebuffer);
 		glEnable(GL_DEPTH_TEST);
 
+		glClearColor(0.8f, 0.8f, 0.8f, 1.f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		//draw scene
+		// draw scene
 		modelShader.use();
 		forShader.light_position = glm::vec3(-1.f, 1.f, 5.f);
 
@@ -156,10 +193,11 @@ int main()
 		glm::mat4 view = glm::mat4(1.f);
 		glm::mat4 projection = glm::mat4(1.f);
 
-		model = glm::rotate(model, 0.5f, glm::vec3(0.f, 0.7f, 0.f));
+		model = glm::rotate(model, glm::radians(180.f), glm::vec3(0.f, 1.f, 0.f));
 		view = glm::translate(view, forShader.view_position);
 		view = glm::rotate(view, glm::radians(angle_y) * sensetivity_y, glm::vec3(1.f, 0.f, 0.f));
 		view = glm::rotate(view, glm::radians(angle_x) * sensetivity_x, glm::vec3(0.f, 1.f, 0.f));
+
 		projection = glm::perspective(glm::radians(45.f), float(SCR_WIDTH / SCR_HEIGHT), 0.1f, 100.f);
 
 		glm::mat4 transform = projection * view * model;
@@ -189,6 +227,73 @@ int main()
 
 		ourModel.draw(modelShader);
 
+		
+		//post processing framebuffer takeover
+
+		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+		glClearColor(1.f, 1.f, 1.f, 1.f);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		glEnable(GL_DEPTH_TEST);
+
+		// drawing mirror
+		mirrorShader.use();
+		mquadVAO.bind();
+
+		model = glm::mat4(1.f);
+		model = glm::translate(model, glm::vec3(-4.f, 0.f, 0.f));
+		model = glm::rotate(model, glm::radians(70.f), glm::vec3(0.f, 1.f, 0.f));
+		model = glm::scale(model, glm::vec3(4.f, 6.f, 1.f));
+
+		glUniformMatrix4fv(glGetUniformLocation(mirrorShader.id, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+		glUniformMatrix4fv(glGetUniformLocation(mirrorShader.id, "view"), 1, GL_FALSE, glm::value_ptr(view));
+		glUniformMatrix4fv(glGetUniformLocation(mirrorShader.id, "model"), 1, GL_FALSE, glm::value_ptr(model));
+
+		glBindTexture(GL_TEXTURE_2D, mirrorTextureColorBuffer);
+		glDrawArrays(GL_TRIANGLES, 0, 6);
+
+		// draw scene
+		modelShader.use();
+		forShader.light_position = glm::vec3(-1.f, 1.f, 5.f);
+
+		model = glm::mat4(1.f);
+		view = glm::mat4(1.f);
+
+		model = glm::rotate(model, 0.5f, glm::vec3(0.f, 0.7f, 0.f));
+		view = glm::translate(view, forShader.view_position);
+		view = glm::rotate(view, glm::radians(angle_y) * sensetivity_y, glm::vec3(1.f, 0.f, 0.f));
+		view = glm::rotate(view, glm::radians(angle_x) * sensetivity_x, glm::vec3(0.f, 1.f, 0.f));
+		projection = glm::perspective(glm::radians(45.f), float(SCR_WIDTH / SCR_HEIGHT), 0.1f, 100.f);
+
+		transform = projection * view * model;
+
+		// Passing uniforms
+		// view position(camera position)
+		glUniform3fv(glGetUniformLocation(modelShader.id, "view_pos"), 1, glm::value_ptr(forShader.light_position));
+		// point light parameters
+		glUniform3fv(glGetUniformLocation(modelShader.id, "light.direction"), 1, glm::value_ptr(forShader.light_direction));
+		glUniform3fv(glGetUniformLocation(modelShader.id, "light.position"), 1, glm::value_ptr(forShader.light_position));
+		glUniform3fv(glGetUniformLocation(modelShader.id, "light.ambient"), 1, glm::value_ptr(glm::vec3(0.2f, 0.2f, 0.2f)));
+		glUniform3fv(glGetUniformLocation(modelShader.id, "light.diffuse"), 1, glm::value_ptr(glm::vec3(0.8f, 0.8f, 0.8f)));
+		glUniform3fv(glGetUniformLocation(modelShader.id, "light.specular"), 1, glm::value_ptr(glm::vec3(1.f, 1.f, 1.f)));
+		glUniform1f(glGetUniformLocation(modelShader.id, "material.shininess"), 6.f);
+
+		glUniform1f(glGetUniformLocation(modelShader.id, "light.kc"), 1.f);
+		glUniform1f(glGetUniformLocation(modelShader.id, "light.kl"), 0.09f);
+		glUniform1f(glGetUniformLocation(modelShader.id, "light.kq"), 0.032f);
+		// view matrix
+		glUniformMatrix4fv(glGetUniformLocation(modelShader.id, "view"), 1, GL_FALSE, glm::value_ptr(view));
+		// model matrix
+		glUniformMatrix4fv(glGetUniformLocation(modelShader.id, "model"), 1, GL_FALSE, glm::value_ptr(model));
+		// projection matrix
+		glUniformMatrix4fv(glGetUniformLocation(modelShader.id, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+		// projection * view * model
+		glUniformMatrix4fv(glGetUniformLocation(modelShader.id, "transform"), 1, GL_FALSE, glm::value_ptr(transform));
+
+		ourModel.draw(modelShader);
+
+		// back to the default framebuffer
+		// drawing the screen quad for post processing
+
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 		glDisable(GL_DEPTH_TEST);
 
@@ -205,8 +310,11 @@ int main()
 
 	modelShader.Delete();
 	ppquadShader.Delete();
+	mirrorShader.Delete();
 	ppquadVAO.Delete();
-	ppquadVBO.Delete();
+	mquadVAO.Delete();
+	quadVBO.Delete();
+	mquadVBO.Delete();
 
 	return 0;
 }
