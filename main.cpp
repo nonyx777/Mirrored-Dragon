@@ -168,6 +168,11 @@ int main()
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, mirrorTextureColorBuffer, 0);
+	unsigned int mirror_rbo;
+	glGenRenderbuffers(1, &mirror_rbo);
+	glBindRenderbuffer(GL_RENDERBUFFER, mirror_rbo);
+	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, SCR_WIDTH, SCR_HEIGHT);
+	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, mirror_rbo);
 	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
 	{
 		std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not coplete" << std::endl;
@@ -181,8 +186,7 @@ int main()
 		// activate quad framebuffer
 		glBindFramebuffer(GL_FRAMEBUFFER, mirrorframebuffer);
 		glEnable(GL_DEPTH_TEST);
-
-		glClearColor(0.8f, 0.8f, 0.8f, 1.f);
+		glClearColor(0.5f, 0.5f, 0.5f, 1.f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		// draw scene
@@ -193,7 +197,7 @@ int main()
 		glm::mat4 view = glm::mat4(1.f);
 		glm::mat4 projection = glm::mat4(1.f);
 
-		model = glm::rotate(model, glm::radians(180.f), glm::vec3(0.f, 1.f, 0.f));
+		model = glm::rotate(model, glm::radians(270.f), glm::vec3(0.f, 1.f, 0.f));
 		view = glm::translate(view, forShader.view_position);
 		view = glm::rotate(view, glm::radians(angle_y) * sensetivity_y, glm::vec3(1.f, 0.f, 0.f));
 		view = glm::rotate(view, glm::radians(angle_x) * sensetivity_x, glm::vec3(0.f, 1.f, 0.f));
@@ -296,7 +300,7 @@ int main()
 
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 		glDisable(GL_DEPTH_TEST);
-
+		glClearColor(0.f, 0.f, 0.f, 1.f);
 		glClear(GL_COLOR_BUFFER_BIT);
 
 		ppquadShader.use();
