@@ -15,6 +15,23 @@ mat4 instanceMatrix = mat4(instance1Layout, instance2Layout, instance3Layout, in
 
 void main()
 {
-    gl_Position = projection * view * instanceMatrix * vec4(aPos, 1.f);
+    mat4 model = instanceMatrix;
+    
+    // Extract position from the model matrix
+    vec3 position = vec3(model[3]);
+
+    // Calculate the camera's right and up vectors in world space
+    vec3 right = vec3(view[0][0], view[1][0], view[2][0]);
+    vec3 up = vec3(view[0][1], view[1][1], view[2][1]);
+
+    // Calculate the billboard matrix
+    mat4 billboardMatrix = mat4(
+        vec4(right, 0.0),
+        vec4(up, 0.0),
+        vec4(cross(up, right), 0.0),
+        vec4(position, 1.0)
+    );
+
+    gl_Position = projection * view * billboardMatrix * vec4(aPos, 1.f);
     tex_coords = aTextureCoord;  
 }
