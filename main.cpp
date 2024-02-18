@@ -9,6 +9,7 @@
 #include "include/Model.hpp"
 #include "include/VAO.hpp"
 #include "include/VBO.hpp"
+#include <random>
 
 // pp_quad vertices (post-processing quad)
 float quad_vertices[] = {
@@ -31,12 +32,24 @@ float mirror_quad_vertices[] = {
 	0.5f, -0.5f, 0.f, 1.f, 0.f,
 	0.5f, 0.5f, 0.f, 1.f, 1.f};
 
+float grass_vertices[] = {
+	// position //texcoords
+	-0.5f, 0.5f, 0.f, 0.f, 1.f,
+	-0.5f, -0.5f, 0.f, 0.f, 0.f,
+	0.5f, -0.5f, 0.f, 1.f, 0.f,
+
+	-0.5f, 0.5f, 0.f, 0.f, 1.f,
+	0.5f, -0.5f, 0.f, 1.f, 0.f,
+	0.5f, 0.5f, 0.f, 1.f, 1.f};
+
 void framebuffer_size_callback(GLFWwindow *window, int width, int height);
 void processInput(GLFWwindow *window);
 void mouse_cursor_callback(GLFWwindow *window, double xpos, double ypos);
 void mouse_button_callback(GLFWwindow *window, int button, int action, int mods);
 float clamp(double min, double max, double value);
 float convertAngle(float offset);
+unsigned int loadTexture(char const *path);
+float getRandomFloat(float min, float max);
 
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 800;
@@ -48,12 +61,23 @@ const float sensetivity_x = 7.f;
 const float sensetivity_y = 5.f;
 bool can_rotate = false;
 
+// grass rotation variables
+const float min_rotation_angle = 0.f;
+const float max_rotation_angle = 360.f;
+
 struct ForShader
 {
-	glm::vec3 view_position = glm::vec3(0.f, 0.f, -10.f);
+	glm::vec3 view_position = glm::vec3(0.f, 0.f, -30.f);
 	glm::vec3 light_position = glm::vec3(0.f, 0.f, 2.f);
 	glm::vec3 light_direction = glm::vec3(-1.f, -1.f, -1.f);
 };
+
+std::vector<glm::vec3> vegetation{
+	glm::vec3(-1.5f, -1.f, -0.48f),
+	glm::vec3(1.5f, -1.f, 0.51f),
+	glm::vec3(0.f, -1.f, 0.7f),
+	glm::vec3(-0.3f, -1.f, -2.3f),
+	glm::vec3(0.5f, -1.f, -0.6f)};
 
 const float radius = 10.f;
 
@@ -104,33 +128,65 @@ int main()
 
 	glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
 
+	// grass variables
+	unsigned int amount = 5000;
+	glm::mat4 *modelMatrices;
+	modelMatrices = new glm::mat4[amount];
+	srand(static_cast<unsigned int>(glfwGetTime())); // initialize random seed
+	float radius = 150.0;
+	float offset = 25.0f;
+	for (unsigned int i = 0; i < amount; i++)
+	{
+		float angle = getRandomFloat(0.f, 360.f);
+		float x = getRandomFloat(-20.f, 20.f);
+		float z = getRandomFloat(-20.f, 20.f);
+
+		glm::mat4 model = glm::mat4(1.0f);
+		model = glm::translate(model, glm::vec3(x, -1.f, z));
+		model = glm::rotate(model, glm::radians(angle), glm::vec3(0.f, 1.f, 0.f));
+		modelMatrices[i] = model;
+	}
+
 	glEnable(GL_DEPTH_TEST);
 
 	//...
 	Shader modelShader = Shader("./resource/object.vert", "./resource/object.frag");
 	Shader ppquadShader = Shader("./resource/pp_quad.vert", "./resource/pp_quad.frag");
 	Shader mirrorShader = Shader("./resource/mirror_quad.vert", "./resource/mirror_quad.frag");
+	Shader grassShader = Shader("./resource/grass.vert", "./resource/grass.frag");
 
 	// load model
-	Model ourModel("./resource/objects/backpack/backpack.obj");
+	Model backpack("./resource/objects/backpack/backpack.obj");
+	unsigned int grassTexture = loadTexture("./resource/objects/grass/diffuse.png");
 
 	ppquadShader.use();
 	glUniform1i(glGetUniformLocation(ppquadShader.id, "screenTexture"), 0);
 	mirrorShader.use();
 	glUniform1i(glGetUniformLocation(mirrorShader.id, "mirrorTexture"), 0);
+	grassShader.use();
+	glUniform1i(glGetUniformLocation(grassShader.id, "grassTexture"), 0);
 
 	// vertex buffers and attributes
+	// post processing quad
 	VAO ppquadVAO = VAO();
 	VBO quadVBO = VBO(quad_vertices, sizeof(quad_vertices));
 	ppquadVAO.bind();
 	ppquadVAO.linkVBO(quadVBO, 0, 1, true);
 	ppquadVAO.unbind();
-
+	// mirror quad
 	VAO mquadVAO = VAO();
 	VBO mquadVBO = VBO(mirror_quad_vertices, sizeof(mirror_quad_vertices));
 	mquadVAO.bind();
 	mquadVAO.linkVBO(mquadVBO, 0, 1, true);
 	mquadVAO.unbind();
+
+	// grass texture
+	VAO grassVAO = VAO();
+	grassVAO.bind();
+	VBO grassVBO1 = VBO(grass_vertices, sizeof(grass_vertices));
+	VBO grassVBO2 = VBO(&modelMatrices[0], amount * sizeof(glm::mat4));
+	grassVAO.linkVBO(grassVBO1, grassVBO2, 0, 1, 2, 3, 4, 5);
+	grassVAO.unbind();
 
 	// framebuffer for post processing
 	unsigned int framebuffer;
@@ -183,10 +239,12 @@ int main()
 	{
 		processInput(window);
 
+		//......................................................................................
+
 		// activate quad framebuffer
 		glBindFramebuffer(GL_FRAMEBUFFER, mirrorframebuffer);
 		glEnable(GL_DEPTH_TEST);
-		glClearColor(0.5f, 0.5f, 0.5f, 1.f);
+		glClearColor(0.9f, 0.9f, 0.9f, 1.f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		// draw scene
@@ -198,7 +256,7 @@ int main()
 		glm::mat4 projection = glm::mat4(1.f);
 
 		model = glm::rotate(model, glm::radians(270.f), glm::vec3(0.f, 1.f, 0.f));
-		view = glm::translate(view, forShader.view_position);
+		view = glm::translate(view, glm::vec3(0.f, 0.f, -8.f));
 		view = glm::rotate(view, glm::radians(angle_y) * sensetivity_y, glm::vec3(1.f, 0.f, 0.f));
 		view = glm::rotate(view, glm::radians(angle_x) * sensetivity_x, glm::vec3(0.f, 1.f, 0.f));
 
@@ -229,10 +287,20 @@ int main()
 		// projection * view * model
 		glUniformMatrix4fv(glGetUniformLocation(modelShader.id, "transform"), 1, GL_FALSE, glm::value_ptr(transform));
 
-		ourModel.draw(modelShader);
+		backpack.draw(modelShader);
 
-		
-		//post processing framebuffer takeover
+		grassShader.use();
+		grassVAO.bind();
+		model = glm::mat4(1.f);
+		glUniformMatrix4fv(glGetUniformLocation(grassShader.id, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+		glUniformMatrix4fv(glGetUniformLocation(grassShader.id, "view"), 1, GL_FALSE, glm::value_ptr(view));
+		glUniformMatrix4fv(glGetUniformLocation(grassShader.id, "model"), 1, GL_FALSE, glm::value_ptr(model));
+		glBindTexture(GL_TEXTURE_2D, grassTexture);
+		glDrawArraysInstanced(GL_TRIANGLES, 0, 6, amount);
+
+		// post processing framebuffer takeover
+
+		//.....................................................................................
 
 		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
 		glClearColor(1.f, 1.f, 1.f, 1.f);
@@ -247,6 +315,10 @@ int main()
 		model = glm::translate(model, glm::vec3(-4.f, 0.f, 0.f));
 		model = glm::rotate(model, glm::radians(70.f), glm::vec3(0.f, 1.f, 0.f));
 		model = glm::scale(model, glm::vec3(4.f, 6.f, 1.f));
+		view = glm::mat4(1.f);
+		view = glm::translate(view, glm::vec3(0.f, 0.f, -30.f));
+		view = glm::rotate(view, glm::radians(angle_y) * sensetivity_y, glm::vec3(1.f, 0.f, 0.f));
+		view = glm::rotate(view, glm::radians(angle_x) * sensetivity_x, glm::vec3(0.f, 1.f, 0.f));
 
 		glUniformMatrix4fv(glGetUniformLocation(mirrorShader.id, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
 		glUniformMatrix4fv(glGetUniformLocation(mirrorShader.id, "view"), 1, GL_FALSE, glm::value_ptr(view));
@@ -255,7 +327,7 @@ int main()
 		glBindTexture(GL_TEXTURE_2D, mirrorTextureColorBuffer);
 		glDrawArrays(GL_TRIANGLES, 0, 6);
 
-		// draw scene
+		// draw backpack
 		modelShader.use();
 		forShader.light_position = glm::vec3(-1.f, 1.f, 5.f);
 
@@ -293,8 +365,20 @@ int main()
 		// projection * view * model
 		glUniformMatrix4fv(glGetUniformLocation(modelShader.id, "transform"), 1, GL_FALSE, glm::value_ptr(transform));
 
-		ourModel.draw(modelShader);
+		backpack.draw(modelShader);
 
+		// draw grass
+
+		grassShader.use();
+		grassVAO.bind();
+		model = glm::mat4(1.f);
+		glUniformMatrix4fv(glGetUniformLocation(grassShader.id, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+		glUniformMatrix4fv(glGetUniformLocation(grassShader.id, "view"), 1, GL_FALSE, glm::value_ptr(view));
+		glUniformMatrix4fv(glGetUniformLocation(grassShader.id, "model"), 1, GL_FALSE, glm::value_ptr(model));
+		glBindTexture(GL_TEXTURE_2D, grassTexture);
+		glDrawArraysInstanced(GL_TRIANGLES, 0, 6, amount);
+
+		//........................................................................................................
 		// back to the default framebuffer
 		// drawing the screen quad for post processing
 
@@ -315,10 +399,15 @@ int main()
 	modelShader.Delete();
 	ppquadShader.Delete();
 	mirrorShader.Delete();
+	grassShader.Delete();
 	ppquadVAO.Delete();
 	mquadVAO.Delete();
+	grassVAO.Delete();
 	quadVBO.Delete();
 	mquadVBO.Delete();
+	grassVBO1.Delete();
+
+	delete[] modelMatrices;
 
 	return 0;
 }
@@ -377,4 +466,49 @@ float convertAngle(float offset)
 	// SCR_WIDTH = 360 degrees
 	float angle_deg = 360.f * offset / 800.f;
 	return glm::radians(angle_deg);
+}
+
+unsigned int loadTexture(char const *path)
+{
+	unsigned int textureID;
+	glGenTextures(1, &textureID);
+
+	int width, height, nrComponents;
+	unsigned char *data = stbi_load(path, &width, &height, &nrComponents, 0);
+	if (data)
+	{
+		GLenum format;
+		if (nrComponents == 1)
+			format = GL_RED;
+		else if (nrComponents == 3)
+			format = GL_RGB;
+		else if (nrComponents == 4)
+			format = GL_RGBA;
+
+		glBindTexture(GL_TEXTURE_2D, textureID);
+		glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+		glGenerateMipmap(GL_TEXTURE_2D);
+
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, format == GL_RGBA ? GL_CLAMP_TO_EDGE : GL_REPEAT); // for this tutorial: use GL_CLAMP_TO_EDGE to prevent semi-transparent borders. Due to interpolation it takes texels from next repeat
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, format == GL_RGBA ? GL_CLAMP_TO_EDGE : GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+		stbi_image_free(data);
+	}
+	else
+	{
+		std::cout << "Texture failed to load at path: " << path << std::endl;
+		stbi_image_free(data);
+	}
+
+	return textureID;
+}
+
+float getRandomFloat(float min, float max)
+{
+	std::random_device rd;
+	std::mt19937 gen(rd());
+	std::uniform_real_distribution<float> dis(min, max);
+	return dis(gen);
 }
