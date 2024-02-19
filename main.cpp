@@ -62,7 +62,7 @@ unsigned int loadTexture(char const *path);
 float getRandomFloat(float min, float max);
 
 const unsigned int SCR_WIDTH = 800;
-const unsigned int SCR_HEIGHT = 800;
+const unsigned int SCR_HEIGHT = 600;
 double lastX, lastY;
 bool firstMouse = true;
 float angle_x{0.f};
@@ -276,6 +276,7 @@ int main()
 		glm::mat4 view = glm::mat4(1.f);
 		glm::mat4 projection = glm::mat4(1.f);
 
+		model = glm::translate(model, glm::vec3(0.f, 0.f, 0.f));
 		model = glm::rotate(model, glm::radians(270.f), glm::vec3(0.f, 1.f, 0.f));
 		view = glm::translate(view, glm::vec3(0.f, 0.f, -8.f));
 		view = glm::rotate(view, glm::radians(angle_y) * sensetivity_y, glm::vec3(1.f, 0.f, 0.f));
@@ -333,7 +334,7 @@ int main()
 		mquadVAO.bind();
 
 		model = glm::mat4(1.f);
-		model = glm::translate(model, glm::vec3(-4.f, 0.f, 0.f));
+		model = glm::translate(model, glm::vec3(-4.f, 1.f, 0.f));
 		model = glm::rotate(model, glm::radians(70.f), glm::vec3(0.f, 1.f, 0.f));
 		model = glm::scale(model, glm::vec3(4.f, 6.f, 1.f));
 		view = glm::mat4(1.f);
@@ -355,6 +356,7 @@ int main()
 		model = glm::mat4(1.f);
 		view = glm::mat4(1.f);
 
+		model = glm::translate(model, glm::vec3(0.f, 1.f, 0.f));
 		model = glm::rotate(model, 0.5f, glm::vec3(0.f, 0.7f, 0.f));
 		view = glm::translate(view, forShader.view_position);
 		view = glm::rotate(view, glm::radians(angle_y) * sensetivity_y, glm::vec3(1.f, 0.f, 0.f));
