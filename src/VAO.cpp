@@ -55,7 +55,7 @@ void VAO::linkVBO(VBO vbo, GLuint posLayout, GLuint texLayout, bool texture)
     vbo.unbind();
 }
 
-void VAO::linkVBO(VBO vbo1, VBO vbo2, GLuint posLayout, GLuint texLayout, GLuint instanced1Layout, GLuint instanced2Layout, GLuint instanced3Layout, GLuint instanced4Layout)
+void VAO::linkVBO(VBO vbo1, VBO vbo2, VBO vbo3, GLuint posLayout, GLuint texLayout, GLuint instanced1Layout, GLuint instanced2Layout, GLuint instanced3Layout, GLuint instanced4Layout, GLuint heightLayout)
 {
     vbo1.bind();
     glEnableVertexAttribArray(posLayout);
@@ -73,11 +73,16 @@ void VAO::linkVBO(VBO vbo1, VBO vbo2, GLuint posLayout, GLuint texLayout, GLuint
     glEnableVertexAttribArray(instanced4Layout);
     glVertexAttribPointer(instanced4Layout, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void *)(3 * sizeof(glm::vec4)));
     vbo2.unbind();
+    vbo3.bind();
+    glEnableVertexAttribArray(heightLayout);
+    glVertexAttribPointer(heightLayout, 1.f, GL_FLOAT, GL_FALSE, sizeof(float), (void *)0);
+    vbo3.unbind();
 
     glVertexAttribDivisor(instanced1Layout, 1);
     glVertexAttribDivisor(instanced2Layout, 1);
     glVertexAttribDivisor(instanced3Layout, 1);
     glVertexAttribDivisor(instanced4Layout, 1);
+    glVertexAttribDivisor(heightLayout, 1);
 }
 
 void VAO::bind()

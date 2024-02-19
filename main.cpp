@@ -82,13 +82,6 @@ struct ForShader
 	glm::vec3 light_direction = glm::vec3(-1.f, -1.f, -1.f);
 };
 
-std::vector<glm::vec3> vegetation{
-	glm::vec3(-1.5f, -1.f, -0.48f),
-	glm::vec3(1.5f, -1.f, 0.51f),
-	glm::vec3(0.f, -1.f, 0.7f),
-	glm::vec3(-0.3f, -1.f, -2.3f),
-	glm::vec3(0.5f, -1.f, -0.6f)};
-
 const float radius = 10.f;
 
 int main()
@@ -142,11 +135,14 @@ int main()
 	unsigned int amount = 50000;
 	glm::mat4 *modelMatrices;
 	modelMatrices = new glm::mat4[amount];
+	float *grassHeight;
+	grassHeight = new float[amount];
 	srand(static_cast<unsigned int>(glfwGetTime())); // initialize random seed
 	float radius = 150.0;
 	float offset = 25.0f;
 	for (unsigned int i = 0; i < amount; i++)
 	{
+		//model.......
 		float angle = getRandomFloat(0.f, 360.f);
 		float x = getRandomFloat(-40.f, 40.f);
 		float z = getRandomFloat(-40.f, 40.f);
@@ -155,6 +151,9 @@ int main()
 		model = glm::translate(model, glm::vec3(x, -1.f, z));
 		model = glm::rotate(model, glm::radians(angle), glm::vec3(0.f, 1.f, 0.f));
 		modelMatrices[i] = model;
+		//height......
+		float height = getRandomFloat(0.f, 3.f);
+		grassHeight[i] = height;
 	}
 
 	glEnable(GL_DEPTH_TEST);
@@ -199,7 +198,8 @@ int main()
 	grassVAO.bind();
 	VBO grassVBO1 = VBO(grass_vertices, sizeof(grass_vertices));
 	VBO grassVBO2 = VBO(&modelMatrices[0], amount * sizeof(glm::mat4));
-	grassVAO.linkVBO(grassVBO1, grassVBO2, 0, 1, 2, 3, 4, 5);
+	VBO grassVBO3 = VBO(grassHeight, amount * sizeof(float));
+	grassVAO.linkVBO(grassVBO1, grassVBO2, grassVBO3, 0, 1, 2, 3, 4, 5, 6);
 	grassVAO.unbind();
 
 	// cloud texture
@@ -442,6 +442,7 @@ int main()
 	grassVBO1.Delete();
 
 	delete[] modelMatrices;
+	delete[] grassHeight;
 
 	return 0;
 }

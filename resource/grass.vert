@@ -6,12 +6,15 @@ layout (location = 2) in vec4 instance1Layout;
 layout (location = 3) in vec4 instance2Layout;
 layout (location = 4) in vec4 instance3Layout;
 layout (location = 5) in vec4 instance4Layout;
+layout (location = 6) in float heightLayout;
 
 out vec2 tex_coords;
 
 uniform mat4 projection, view;
 
 mat4 instanceMatrix = mat4(instance1Layout, instance2Layout, instance3Layout, instance4Layout);
+
+float grass_height = heightLayout;
 
 void main()
 {
@@ -27,9 +30,9 @@ void main()
 
     // Calculate the billboard matrix
     mat4 billboardMatrix = mat4(
-        vec4(right, 0.0),
-        vec4(up, 0.0),
-        vec4(cross(up, right), 0.0),
+        vec4(right, 0.0) * grass_height,
+        vec4(up, 0.0) * grass_height,
+        vec4(cross(up, right), 0.0) * grass_height,
         vec4(position, 1.0)
     );
 
