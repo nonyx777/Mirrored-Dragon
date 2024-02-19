@@ -9,12 +9,13 @@ layout (location = 5) in vec4 instance4Layout;
 
 out vec2 tex_coords;
 
-uniform mat4 projection, view, model;
+uniform mat4 projection, view;
 
 mat4 instanceMatrix = mat4(instance1Layout, instance2Layout, instance3Layout, instance4Layout);
 
 void main()
 {
+    //billboarding
     mat4 model = instanceMatrix;
     
     // Extract position from the model matrix

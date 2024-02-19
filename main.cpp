@@ -42,6 +42,16 @@ float grass_vertices[] = {
 	0.5f, -0.5f, 0.f, 1.f, 0.f,
 	0.5f, 0.5f, 0.f, 1.f, 1.f};
 
+float cloud_vertices[] = {
+	// position //texcoords
+	-0.5f, 0.5f, 0.f, 0.f, 1.f,
+	-0.5f, -0.5f, 0.f, 0.f, 0.f,
+	0.5f, -0.5f, 0.f, 1.f, 0.f,
+
+	-0.5f, 0.5f, 0.f, 0.f, 1.f,
+	0.5f, -0.5f, 0.f, 1.f, 0.f,
+	0.5f, 0.5f, 0.f, 1.f, 1.f};
+
 void framebuffer_size_callback(GLFWwindow *window, int width, int height);
 void processInput(GLFWwindow *window);
 void mouse_cursor_callback(GLFWwindow *window, double xpos, double ypos);
@@ -129,7 +139,7 @@ int main()
 	glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
 
 	// grass variables
-	unsigned int amount = 5000;
+	unsigned int amount = 50000;
 	glm::mat4 *modelMatrices;
 	modelMatrices = new glm::mat4[amount];
 	srand(static_cast<unsigned int>(glfwGetTime())); // initialize random seed
@@ -138,8 +148,8 @@ int main()
 	for (unsigned int i = 0; i < amount; i++)
 	{
 		float angle = getRandomFloat(0.f, 360.f);
-		float x = getRandomFloat(-20.f, 20.f);
-		float z = getRandomFloat(-20.f, 20.f);
+		float x = getRandomFloat(-40.f, 40.f);
+		float z = getRandomFloat(-40.f, 40.f);
 
 		glm::mat4 model = glm::mat4(1.0f);
 		model = glm::translate(model, glm::vec3(x, -1.f, z));
@@ -154,10 +164,12 @@ int main()
 	Shader ppquadShader = Shader("./resource/pp_quad.vert", "./resource/pp_quad.frag");
 	Shader mirrorShader = Shader("./resource/mirror_quad.vert", "./resource/mirror_quad.frag");
 	Shader grassShader = Shader("./resource/grass.vert", "./resource/grass.frag");
+	Shader cloudShader = Shader("./resource/cloud.vert", "./resource/cloud.frag");
 
 	// load model
 	Model backpack("./resource/objects/backpack/backpack.obj");
 	unsigned int grassTexture = loadTexture("./resource/objects/grass/diffuse.png");
+	unsigned int cloudTexture = loadTexture("./resource/objects/cloud/cloud1.png");
 
 	ppquadShader.use();
 	glUniform1i(glGetUniformLocation(ppquadShader.id, "screenTexture"), 0);
@@ -165,6 +177,8 @@ int main()
 	glUniform1i(glGetUniformLocation(mirrorShader.id, "mirrorTexture"), 0);
 	grassShader.use();
 	glUniform1i(glGetUniformLocation(grassShader.id, "grassTexture"), 0);
+	cloudShader.use();
+	glUniform1i(glGetUniformLocation(cloudShader.id, "cloudTexture"), 0);
 
 	// vertex buffers and attributes
 	// post processing quad
@@ -187,6 +201,13 @@ int main()
 	VBO grassVBO2 = VBO(&modelMatrices[0], amount * sizeof(glm::mat4));
 	grassVAO.linkVBO(grassVBO1, grassVBO2, 0, 1, 2, 3, 4, 5);
 	grassVAO.unbind();
+
+	// cloud texture
+	VAO cloudVAO = VAO();
+	cloudVAO.bind();
+	VBO cloudVBO = VBO(cloud_vertices, sizeof(cloud_vertices));
+	cloudVAO.linkVBO(cloudVBO, 0, 1, true);
+	cloudVAO.unbind();
 
 	// framebuffer for post processing
 	unsigned int framebuffer;
@@ -244,7 +265,7 @@ int main()
 		// activate quad framebuffer
 		glBindFramebuffer(GL_FRAMEBUFFER, mirrorframebuffer);
 		glEnable(GL_DEPTH_TEST);
-		glClearColor(0.9f, 0.9f, 0.9f, 1.f);
+		glClearColor(0.f, 0.5f, 0.6f, 1.f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		// draw scene
@@ -303,7 +324,7 @@ int main()
 		//.....................................................................................
 
 		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
-		glClearColor(1.f, 1.f, 1.f, 1.f);
+		glClearColor(0.f, 0.7f, 1.f, 1.f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		glEnable(GL_DEPTH_TEST);
 
@@ -375,8 +396,21 @@ int main()
 		glUniformMatrix4fv(glGetUniformLocation(grassShader.id, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
 		glUniformMatrix4fv(glGetUniformLocation(grassShader.id, "view"), 1, GL_FALSE, glm::value_ptr(view));
 		glUniformMatrix4fv(glGetUniformLocation(grassShader.id, "model"), 1, GL_FALSE, glm::value_ptr(model));
+
 		glBindTexture(GL_TEXTURE_2D, grassTexture);
 		glDrawArraysInstanced(GL_TRIANGLES, 0, 6, amount);
+
+		// draw cloud
+		cloudShader.use();
+		cloudVAO.bind();
+		model = glm::mat4(1.f);
+		model = glm::translate(model, glm::vec3(-5.f, 20.f, -50.f));
+		glUniformMatrix4fv(glGetUniformLocation(cloudShader.id, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+		glUniformMatrix4fv(glGetUniformLocation(cloudShader.id, "view"), 1, GL_FALSE, glm::value_ptr(view));
+		glUniformMatrix4fv(glGetUniformLocation(cloudShader.id, "model"), 1, GL_FALSE, glm::value_ptr(model));
+
+		glBindTexture(GL_TEXTURE_2D, cloudTexture);
+		glDrawArrays(GL_TRIANGLES, 0, 6);
 
 		//........................................................................................................
 		// back to the default framebuffer
