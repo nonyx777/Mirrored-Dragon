@@ -11,10 +11,20 @@ layout (location = 6) in float heightLayout;
 out vec2 tex_coords;
 
 uniform mat4 projection, view;
+uniform float rotation_angle;
 
 mat4 instanceMatrix = mat4(instance1Layout, instance2Layout, instance3Layout, instance4Layout);
 
 float grass_height = heightLayout;
+
+vec3 rotateVector(vec3 v, float angle, vec3 axis) {
+    float s = sin(angle);
+    float c = cos(angle);
+    float oneMinusC = 1.0 - c;
+
+    vec3 rotatedVector = v * c + cross(axis, v) * s + axis * dot(axis, v) * oneMinusC;
+    return rotatedVector;
+}
 
 void main()
 {
@@ -36,6 +46,9 @@ void main()
         vec4(position, 1.0)
     );
 
-    gl_Position = projection * view * billboardMatrix * vec4(aPos, 1.f);
+    //rotation stuff
+    vec3 rotationVector = rotateVector(aPos, rotation_angle, vec3(0.f, 0.f, 1.f));
+
+    gl_Position = projection * view * billboardMatrix * vec4(rotationVector, 1.f);
     tex_coords = aTextureCoord;  
 }

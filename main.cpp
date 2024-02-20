@@ -60,6 +60,7 @@ float clamp(double min, double max, double value);
 float convertAngle(float offset);
 unsigned int loadTexture(char const *path);
 float getRandomFloat(float min, float max);
+float lerp(float value, float min, float max);
 
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
@@ -325,7 +326,7 @@ int main()
 		//.....................................................................................
 
 		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
-		glClearColor(0.f, 0.7f, 1.f, 1.f);
+		glClearColor(0.f, 0.2f, 1.f, 1.f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		glEnable(GL_DEPTH_TEST);
 
@@ -395,9 +396,13 @@ int main()
 		grassShader.use();
 		grassVAO.bind();
 		model = glm::mat4(1.f);
+		float ossilate = glm::sin(glfwGetTime());
+		float rotation_tempo = lerp(ossilate, 0.f, 10.f);
+		float rotation_angle = glm::radians(rotation_tempo);
 		glUniformMatrix4fv(glGetUniformLocation(grassShader.id, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
 		glUniformMatrix4fv(glGetUniformLocation(grassShader.id, "view"), 1, GL_FALSE, glm::value_ptr(view));
 		glUniformMatrix4fv(glGetUniformLocation(grassShader.id, "model"), 1, GL_FALSE, glm::value_ptr(model));
+		glUniform1f(glGetUniformLocation(grassShader.id, "rotation_angle"), rotation_angle);
 
 		glBindTexture(GL_TEXTURE_2D, grassTexture);
 		glDrawArraysInstanced(GL_TRIANGLES, 0, 6, amount);
@@ -406,7 +411,7 @@ int main()
 		cloudShader.use();
 		cloudVAO.bind();
 		model = glm::mat4(1.f);
-		model = glm::translate(model, glm::vec3(-5.f, 20.f, -50.f));
+		model = glm::translate(model, glm::vec3(-50.f, 20.f, -50.f));
 		glUniformMatrix4fv(glGetUniformLocation(cloudShader.id, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
 		glUniformMatrix4fv(glGetUniformLocation(cloudShader.id, "view"), 1, GL_FALSE, glm::value_ptr(view));
 		glUniformMatrix4fv(glGetUniformLocation(cloudShader.id, "model"), 1, GL_FALSE, glm::value_ptr(model));
@@ -548,4 +553,11 @@ float getRandomFloat(float min, float max)
 	std::mt19937 gen(rd());
 	std::uniform_real_distribution<float> dis(min, max);
 	return dis(gen);
+}
+
+float lerp(float value, float min, float max)
+{
+	float mapped = (value + 1.f) / 2.f;
+	float lerped_value = (max * mapped) / 1.f;
+	return lerped_value;
 }
