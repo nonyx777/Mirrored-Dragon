@@ -263,7 +263,7 @@ int main()
 
 		//......................................................................................
 
-		// activate quad framebuffer
+		// activate quad mirrorframebuffer
 		glBindFramebuffer(GL_FRAMEBUFFER, mirrorframebuffer);
 		glEnable(GL_DEPTH_TEST);
 		glClearColor(0.f, 0.5f, 0.6f, 1.f);
@@ -310,7 +310,7 @@ int main()
 		// projection * view * model
 		glUniformMatrix4fv(glGetUniformLocation(modelShader.id, "transform"), 1, GL_FALSE, glm::value_ptr(transform));
 
-		backpack.draw(modelShader);
+		// backpack.draw(modelShader);
 
 		grassShader.use();
 		grassVAO.bind();
@@ -326,7 +326,7 @@ int main()
 		//.....................................................................................
 
 		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
-		glClearColor(0.f, 0.2f, 1.f, 1.f);
+		glClearColor(0.f, 0.5f, 0.7f, 1.f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		glEnable(GL_DEPTH_TEST);
 
@@ -389,14 +389,14 @@ int main()
 		// projection * view * model
 		glUniformMatrix4fv(glGetUniformLocation(modelShader.id, "transform"), 1, GL_FALSE, glm::value_ptr(transform));
 
-		backpack.draw(modelShader);
+		// backpack.draw(modelShader);
 
 		// draw grass
 
 		grassShader.use();
 		grassVAO.bind();
 		model = glm::mat4(1.f);
-		float ossilate = glm::sin(glfwGetTime());
+		float ossilate = glm::sin(glfwGetTime() * 2.f);
 		float rotation_tempo = lerp(ossilate, 0.f, 10.f);
 		float rotation_angle = glm::radians(rotation_tempo);
 		glUniformMatrix4fv(glGetUniformLocation(grassShader.id, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
