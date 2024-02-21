@@ -337,7 +337,7 @@ int main()
 		model = glm::mat4(1.f);
 		model = glm::translate(model, glm::vec3(-4.f, 1.f, 0.f));
 		model = glm::rotate(model, glm::radians(70.f), glm::vec3(0.f, 1.f, 0.f));
-		model = glm::scale(model, glm::vec3(4.f, 6.f, 1.f));
+		model = glm::scale(model, glm::vec3(6.f, 4.f, 1.f));
 		view = glm::mat4(1.f);
 		view = glm::translate(view, glm::vec3(0.f, 0.f, -30.f));
 		view = glm::rotate(view, glm::radians(angle_y) * sensetivity_y, glm::vec3(1.f, 0.f, 0.f));

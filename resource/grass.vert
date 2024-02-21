@@ -26,6 +26,12 @@ vec3 rotateVector(vec3 v, float angle, vec3 axis) {
     return rotatedVector;
 }
 
+float rand(vec2 co)
+{
+    return fract(sin(dot(co.xy, vec2(12.9898, 78.233))) * 43758.5453);
+}
+
+
 void main()
 {
     //billboarding
@@ -46,8 +52,9 @@ void main()
         vec4(position, 1.0)
     );
 
+    float random = rand(aTextureCoord);
     //rotation stuff
-    vec3 rotationVector = rotateVector(aPos, rotation_angle, vec3(0.f, 0.f, 1.f));
+    vec3 rotationVector = rotateVector(aPos, rotation_angle * random, vec3(0.f, 0.f, 1.f));
 
     gl_Position = projection * view * billboardMatrix * vec4(rotationVector, 1.f);
     tex_coords = aTextureCoord;  
